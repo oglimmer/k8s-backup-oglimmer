@@ -1,0 +1,75 @@
+# ── Secrets contract ─────────────────────────────────────────────────────────
+# The chart creates NO Secret. Create it out-of-band (see ../../secret.example.yaml) and reference
+# it here. Required keys in that Secret:
+#   COUCHDB_TARGETS                        JSON array of {db,user,pass}
+#   MARIADB_ROOT_PASSWORD                  MariaDB root password
+#   POSTGRES_PASSWORD                      Postgres superuser password
+#   RCLONE_CONFIG_GDRIVE_TOKEN             rclone Google Drive OAuth token (JSON)
+#   RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID    target Drive folder id
+existingSecret: "backup-secrets"
+
+# CronJob name — also passed to the viewer so its "Run now" button targets the right CronJob.
+cronjobName: "backup"
+
+images:
+  runner:
+    repository: registry.oglimmer.com/backup2
+    tag: "latest"
+    pullPolicy: Always
+  viewer:
+    repository: registry.oglimmer.com/backup2-viewer
+    tag: "latest"
+    pullPolicy: Always
+imagePullSecrets:
+  - name: oglimmerregistrykey
+
+schedule: "30 3 * * *"
+timeZone: "Europe/Berlin"
+
+# age recipient — this is the PUBLIC half of the keypair, safe to commit. The private key stays
+# offline and is never in the cluster. Replace with your own recipient.
+ageRecipient: "age1enwuvyx0p4zf4wjqsxlvktpdt7qdahu09mvu42l63zsgx5smfplsdtry80"
+
+# Non-secret backup configuration (rendered into a ConfigMap, injected as env).
+config:
+  COUCHDB_HOST: "http://couchdb-prod-svc-couchdb.couchdb.svc.cluster.local:5984"
+  MARIADB_POD: "mariadb-0"
+  MARIADB_CONTAINER: "mariadb"
+  POSTGRES_POD: "postgres-0"
+  POSTGRES_USER: "postgres"
+  LUNCHY_SELECTOR: "run=lunchy"
+  LUNCHY_PATH: "/mnt/lunchy/"
+  RETENTION_DAYS: "6"
+  RCLONE_REMOTE: "gdrive:"
+  RCLONE_CONFIG_GDRIVE_TYPE: "drive"
+  RCLONE_CONFIG_GDRIVE_SCOPE: "drive"
+
+runnerResources:
+  requests:
+    memory: "64Mi"
+    cpu: "50m"
+  limits:
+    memory: "512Mi"
+    cpu: "1"
+
+# ── Web UI ───────────────────────────────────────────────────────────────────
+viewer:
+  enabled: true
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "32Mi"
+      cpu: "10m"
+    limits:
+      memory: "128Mi"
+      cpu: "500m"
+
+ingress:
+  enabled: true
+  host: "backup.oglimmer.com"
+  clusterIssuer: "oglimmer-com-dns"
+  tlsSecretName: "tls-backup-viewer-ingress-dns"
+  # Traefik OIDC middleware reference in <namespace>-<name>@kubernetescrd form. The Middleware
+  # itself contains the Keycloak clientSecret, so it is applied OUT-OF-BAND and is NOT part of this
+  # chart — see ../../oidc-middleware.example.yaml. Keep this in sync with that Middleware's name.
+  oidcMiddleware: "default-backup2-oidc-auth@kubernetescrd"

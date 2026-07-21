@@ -1,0 +1,28 @@
+# TEMPLATE — commit this; the filled-in copy (oidc-middleware.yaml) is git-ignored, applied out-of-band.
+#
+# The Traefik OIDC plugin takes its clientSecret INLINE (it cannot reference a Kubernetes Secret),
+# so this Middleware must not be part of the Helm chart or committed with a real secret.
+#
+#   1. cp oidc-middleware.example.yaml oidc-middleware.yaml
+#   2. fill in clientSecret (and adjust clientId/allowedUsers as needed)
+#   3. kubectl apply -f oidc-middleware.yaml
+#
+# The chart's Ingress references this by name via ingress.oidcMiddleware in values.yaml
+# ("default-backup2-oidc-auth@kubernetescrd"). Keep the name in sync.
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: backup2-oidc-auth
+  namespace: default
+spec:
+  plugin:
+    traefikpluginauth:
+      issuerUrl: "https://id.oglimmer.de/realms/oglimmer"
+      clientId: "traefik-auth-test"
+      clientSecret: "REPLACE_WITH_KEYCLOAK_CLIENT_SECRET"
+      redirectUrl: "https://backup.oglimmer.com/oauth2/callback"
+      scopes:
+        - "openid"
+        - "email"
+      allowedUsers:
+        - "oglimmer@gmail.com"

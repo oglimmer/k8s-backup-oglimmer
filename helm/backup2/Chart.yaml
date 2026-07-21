@@ -1,0 +1,8 @@
+apiVersion: v2
+name: backup2
+description: Kubernetes-native cluster backup — CronJob (CouchDB/MariaDB/Postgres + volume) encrypted with age and uploaded to Google Drive, plus a web UI.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Oli

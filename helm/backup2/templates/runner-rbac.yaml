@@ -1,0 +1,42 @@
+# Least-privilege access for the backup runner: list pods (find the lunchy pod) and exec the DB pods.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "backup2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "backup2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "backup2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: backup
+subjects:
+  - kind: ServiceAccount
+    name: backup
+    namespace: {{ .Release.Namespace }}

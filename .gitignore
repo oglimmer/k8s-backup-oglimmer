@@ -1,0 +1,7 @@
+# Never commit real secrets — only the *.example.yaml templates belong in git.
+secret.yaml
+oidc-middleware.yaml
+*.key
+*.age
+age-key*.txt
+rclone.conf

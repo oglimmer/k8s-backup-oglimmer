@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "backup2.cronjobName" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "backup2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: runner
+spec:
+  schedule: {{ .Values.schedule | quote }}
+  timeZone: {{ .Values.timeZone | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  startingDeadlineSeconds: 3600
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 3600
+      ttlSecondsAfterFinished: 259200
+      template:
+        metadata:
+          labels:
+            {{- include "backup2.labels" . | nindent 12 }}
+            app.kubernetes.io/component: runner
+        spec:
+          serviceAccountName: backup
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            fsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          containers:
+            - name: backup
+              image: "{{ .Values.images.runner.repository }}:{{ .Values.images.runner.tag }}"
+              imagePullPolicy: {{ .Values.images.runner.pullPolicy }}
+              envFrom:
+                - configMapRef:
+                    name: {{ include "backup2.configMapName" . }}
+                - secretRef:
+                    name: {{ include "backup2.secretName" . }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+              resources:
+                {{- toYaml .Values.runnerResources | nindent 16 }}
+              volumeMounts:
+                - name: work
+                  mountPath: /home/backup
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: work
+              emptyDir:
+                sizeLimit: 5Gi
+            - name: tmp
+              emptyDir:
+                sizeLimit: 5Gi

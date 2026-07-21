@@ -1,0 +1,15 @@
+backup2 installed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+CronJob:   {{ include "backup2.cronjobName" . }}  (schedule {{ .Values.schedule }} {{ .Values.timeZone }})
+Secret:    {{ include "backup2.secretName" . }}  (must exist — created out-of-band)
+
+Checklist:
+  1. Secret {{ include "backup2.secretName" . }} applied?   kubectl get secret {{ include "backup2.secretName" . }} -n {{ .Release.Namespace }}
+{{- if .Values.viewer.enabled }}
+  2. OIDC middleware applied out-of-band?                   kubectl get middleware.traefik.io -n {{ .Release.Namespace }}
+     (expected name derived from {{ .Values.ingress.oidcMiddleware }})
+  3. UI:  https://{{ .Values.ingress.host }}
+{{- end }}
+
+Run a backup now:
+  kubectl create job --from=cronjob/{{ include "backup2.cronjobName" . }} backup-manual-$(date +%s) -n {{ .Release.Namespace }}

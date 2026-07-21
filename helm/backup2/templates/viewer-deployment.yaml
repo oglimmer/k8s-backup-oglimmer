@@ -1,0 +1,78 @@
+{{- if .Values.viewer.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backup-viewer
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "backup2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: viewer
+spec:
+  replicas: {{ .Values.viewer.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: viewer
+  template:
+    metadata:
+      labels:
+        {{- include "backup2.labels" . | nindent 8 }}
+        app.kubernetes.io/component: viewer
+    spec:
+      serviceAccountName: backup-viewer
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: backup-viewer
+          image: "{{ .Values.images.viewer.repository }}:{{ .Values.images.viewer.tag }}"
+          imagePullPolicy: {{ .Values.images.viewer.pullPolicy }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: HOME
+              value: /home/backup
+            - name: NAMESPACE
+              value: {{ .Release.Namespace }}
+            - name: CRONJOB_NAME
+              value: {{ include "backup2.cronjobName" . }}
+            - name: RCLONE_REMOTE
+              valueFrom: { configMapKeyRef: { name: {{ include "backup2.configMapName" . }}, key: RCLONE_REMOTE } }
+            - name: RCLONE_CONFIG_GDRIVE_TYPE
+              valueFrom: { configMapKeyRef: { name: {{ include "backup2.configMapName" . }}, key: RCLONE_CONFIG_GDRIVE_TYPE } }
+            - name: RCLONE_CONFIG_GDRIVE_SCOPE
+              valueFrom: { configMapKeyRef: { name: {{ include "backup2.configMapName" . }}, key: RCLONE_CONFIG_GDRIVE_SCOPE } }
+            - name: RCLONE_CONFIG_GDRIVE_TOKEN
+              valueFrom: { secretKeyRef: { name: {{ include "backup2.secretName" . }}, key: RCLONE_CONFIG_GDRIVE_TOKEN } }
+            - name: RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID
+              valueFrom: { secretKeyRef: { name: {{ include "backup2.secretName" . }}, key: RCLONE_CONFIG_GDRIVE_ROOT_FOLDER_ID } }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            {{- toYaml .Values.viewer.resources | nindent 12 }}
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          volumeMounts:
+            - name: home
+              mountPath: /home/backup
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: home
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+{{- end }}

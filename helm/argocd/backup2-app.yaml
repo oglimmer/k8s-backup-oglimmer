@@ -1,0 +1,21 @@
+# Optional: deploy the chart via ArgoCD. The backup-secrets Secret and the OIDC Middleware are
+# applied out-of-band (not in git), so auto-sync never manages or prunes them.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backup2
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: https://github.com/oglimmer/k8s-backup.git
+    targetRevision: master
+    path: helm/backup2
+    helm: {}
+  syncPolicy:
+    automated: {}
