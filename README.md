@@ -1,4 +1,4 @@
-# backup2
+# k8s-backup-oglimmer
 
 Kubernetes-native backup for a self-hosted cluster. A `CronJob` dumps the cluster's databases
 (CouchDB, MariaDB, Postgres) and a data volume, encrypts the bundle to an **offline** age key, and
