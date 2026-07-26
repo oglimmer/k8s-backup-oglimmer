@@ -26,3 +26,6 @@ spec:
         - "email"
       allowedUsers:
         - "oglimmer@gmail.com"
+      # Sessions live in Redis so they survive Traefik dynamic-config reloads,
+      # which rebuild the plugin and would empty an in-memory store.
+      sessionBackend: redis:http://redis-service.default.svc.cluster.local:6379
