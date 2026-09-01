@@ -39,7 +39,7 @@ config:
   POSTGRES_USER: "postgres"
   LUNCHY_SELECTOR: "run=lunchy"
   LUNCHY_PATH: "/mnt/lunchy/"
-  RETENTION_DAYS: "6"
+  RETENTION_DAYS: "4"
   RCLONE_REMOTE: "gdrive:"
   RCLONE_CONFIG_GDRIVE_TYPE: "drive"
   RCLONE_CONFIG_GDRIVE_SCOPE: "drive"

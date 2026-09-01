@@ -6,7 +6,7 @@
 #   2. bundles + gzips them
 #   3. encrypts to an age *public* key (the matching private key is kept OFFLINE — a compromised
 #      cluster can therefore never decrypt its own backups)
-#   4. uploads to Google Drive via rclone and prunes copies older than RETENTION_DAYS
+#   4. prunes copies older than RETENTION_DAYS, then uploads to Google Drive via rclone
 #
 # Every input is an environment variable. Non-secret config comes from a ConfigMap, secrets from a
 # Secret (see k8s/). Nothing sensitive lives in this image or in git.
@@ -105,10 +105,15 @@ ARCHIVE="$WORKDIR/backup-${STAMP}.tar.gz.age"
 tar -C "$STAGE" -cf - . | gzip | age -r "$AGE_RECIPIENT" -o "$ARCHIVE"
 log "bundle encrypted -> $(basename "$ARCHIVE") ($(du -h "$ARCHIVE" | cut -f1))"
 
+# Prune BEFORE the upload. `rclone copy` is not guarded, so on a full remote set -e aborts the
+# script right there — a prune placed after it would never run and the remote could never free
+# itself again. Pruning first also lowers the peak space needed on the remote.
+# --drive-use-trash=false deletes for real. Without it rclone only moves files to the Drive
+# trash, which still counts against the account quota until Drive empties it after 30 days.
+rclone delete "$RCLONE_REMOTE" --min-age "${RETENTION_DAYS}d" --drive-use-trash=false --stats-one-line || true
+log "pruned copies older than ${RETENTION_DAYS}d"
+
 rclone copy "$ARCHIVE" "$RCLONE_REMOTE" --stats-one-line
 log "uploaded to $RCLONE_REMOTE"
-
-rclone delete "$RCLONE_REMOTE" --min-age "${RETENTION_DAYS}d" --stats-one-line || true
-log "pruned copies older than ${RETENTION_DAYS}d"
 
 log "backup complete"
